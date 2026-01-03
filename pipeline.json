@@ -1,0 +1,147 @@
+{
+    "name": "Ingest multiple files and create dimension tables",
+    "objectId": "60d45517-fb94-4d54-946e-fcc318e2a813",
+    "properties": {
+        "activities": [
+            {
+                "name": "Get Metadata from lakehouse",
+                "type": "GetMetadata",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "fieldList": [
+                        "childItems"
+                    ],
+                    "datasetSettings": {
+                        "annotations": [],
+                        "linkedService": {
+                            "name": "mylakehouse",
+                            "properties": {
+                                "annotations": [],
+                                "type": "Lakehouse",
+                                "typeProperties": {
+                                    "workspaceId": "5a7f0ac0-ae38-4de6-8849-4e7d07a81297",
+                                    "artifactId": "dd1fdf75-262b-4241-947d-f29e89f36ed7",
+                                    "rootFolder": "Files"
+                                }
+                            }
+                        },
+                        "type": "DelimitedText",
+                        "typeProperties": {
+                            "location": {
+                                "type": "LakehouseLocation",
+                                "folderPath": "new_data"
+                            },
+                            "columnDelimiter": ",",
+                            "escapeChar": "\\",
+                            "firstRowAsHeader": true,
+                            "quoteChar": "\""
+                        },
+                        "schema": []
+                    },
+                    "storeSettings": {
+                        "type": "LakehouseReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                    },
+                    "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                    }
+                }
+            },
+            {
+                "name": "ForEach file",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "Get Metadata from lakehouse",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('Get Metadata from lakehouse').output.childItems",
+                        "type": "Expression"
+                    },
+                    "isSequential": true,
+                    "activities": [
+                        {
+                            "name": "Read file and save as table",
+                            "type": "TridentNotebook",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "notebookId": "d0efb0a5-4cac-4464-a2df-cc7e221efe64",
+                                "workspaceId": "5a7f0ac0-ae38-4de6-8849-4e7d07a81297",
+                                "parameters": {
+                                    "files": {
+                                        "value": {
+                                            "value": "@item().name",
+                                            "type": "Expression"
+                                        },
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Wait for Tables to Load",
+                "type": "Wait",
+                "dependsOn": [
+                    {
+                        "activity": "ForEach file",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "waitTimeInSeconds": 30
+                }
+            },
+            {
+                "name": "Create Dimension Table",
+                "description": "Creating dimension table for sales with customer date and sales as fact table",
+                "type": "TridentNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "Wait for Tables to Load",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "notebookId": "fc4f1126-ef02-44ef-bdef-6b190e4f56f2",
+                    "workspaceId": "5a7f0ac0-ae38-4de6-8849-4e7d07a81297"
+                }
+            }
+        ],
+        "lastModifiedByObjectId": "cfca0956-8f91-47c3-90cd-27b0eadd9b36",
+        "lastPublishTime": "2026-01-03T23:06:48Z"
+    }
+}
